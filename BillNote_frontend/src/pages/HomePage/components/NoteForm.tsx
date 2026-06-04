@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
 import { Info, Loader2, Plus } from 'lucide-react'
-import { message, Alert } from 'antd'
+import { Alert, AlertDescription } from '@/components/ui/alert.tsx'
 import { generateNote } from '@/services/note.ts'
 import { uploadFile } from '@/services/upload.ts'
 import { useTaskStore } from '@/store/taskStore'
@@ -39,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea.tsx'
 import { noteStyles, noteFormats, videoPlatforms } from '@/constant/note.ts'
 import { fetchModels } from '@/services/model.ts'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 
 /* -------------------- 校验 Schema -------------------- */
 const formSchema = z
@@ -53,10 +54,10 @@ const formSchema = z
     style: z.string().nonempty('请选择笔记生成风格'),
     extras: z.string().optional(),
     video_understanding: z.boolean().optional(),
-    video_interval: z.coerce.number().min(1).max(30).default(4).optional(),
+    video_interval: z.coerce.number().min(1).max(30).default(6).optional(),
     grid_size: z
       .tuple([z.coerce.number().min(1).max(10), z.coerce.number().min(1).max(10)])
-      .default([3, 3])
+      .default([2, 2])
       .optional(),
   })
   .superRefine(({ video_url, platform }, ctx) => {
@@ -144,8 +145,8 @@ const NoteForm = () => {
       quality: 'medium',
       model_name: modelList[0]?.model_name || '',
       style: 'minimal',
-      video_interval: 4,
-      grid_size: [3, 3],
+      video_interval: 6,
+      grid_size: [2, 2],
       format: [],
     },
   })
@@ -181,8 +182,8 @@ const NoteForm = () => {
       screenshot: formData.screenshot ?? false,
       link: formData.link ?? false,
       video_understanding: formData.video_understanding ?? false,
-      video_interval: formData.video_interval ?? 4,
-      grid_size: formData.grid_size ?? [3, 3],
+      video_interval: formData.video_interval ?? 6,
+      grid_size: formData.grid_size ?? [2, 2],
       format: formData.format ?? [],
     })
   }, [
@@ -229,8 +230,25 @@ const NoteForm = () => {
     }
 
     // message.success('已提交任务')
-    const  data  = await generateNote(payload)
-    addPendingTask(data.task_id, values.platform, payload)
+    try {
+      const data = await generateNote(payload)
+      addPendingTask(data.task_id, values.platform, payload)
+    } catch (e: any) {
+      // 就绪门禁：本地转写模型还没下载好。后端返回 reason='transcriber_model_not_ready'，
+      // 引导用户去「设置 → 音频转写配置」下载，而不是留一个静默失败的任务。
+      if (e?.data?.reason === 'transcriber_model_not_ready') {
+        const downloading = e?.data?.downloading
+        toast.error(
+          downloading
+            ? '转写模型正在下载中，请稍候再提交'
+            : '转写模型尚未下载，请先去「音频转写配置」页下载',
+        )
+        if (!downloading) navigate('/settings/transcriber')
+        return
+      }
+      // 其余错误：axios 拦截器已经弹过 toast，这里只兜底不让 promise 变成未处理 rejection
+      console.error('提交任务失败：', e)
+    }
   }
   const onInvalid = (errors: FieldErrors<NoteFormValues>) => {
     console.warn('表单校验失败：', errors)
@@ -513,17 +531,11 @@ const NoteForm = () => {
                 )}
               />
             </div>
-            <Alert
-              closable
-              type="error"
-              message={
-                <div>
-                  <strong>提示：</strong>
-                  <p>视频理解功能必须使用多模态模型。</p>
-                </div>
-              }
-              className="text-sm"
-            />
+            <Alert variant="warning" className="text-sm">
+              <AlertDescription>
+                <strong>提示：</strong>视频理解功能必须使用多模态模型。
+              </AlertDescription>
+            </Alert>
           </div>
 
           {/* 笔记格式 */}

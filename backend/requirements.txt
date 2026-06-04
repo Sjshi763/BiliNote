@@ -16,6 +16,7 @@ celery==5.5.1
 certifi==2025.1.31
 cffi==1.17.1
 charset-normalizer==3.4.1
+chromadb>=0.5.0
 click==8.1.8
 click-didyoumean==0.3.1
 click-plugins==1.1.1
@@ -23,7 +24,7 @@ click-repl==0.3.0
 colorama==0.4.6
 coloredlogs==15.0.1
 cssselect2==0.8.0
-ctranslate2==4.5.0
+ctranslate2==4.6.0
 distro==1.9.0
 dnspython==2.7.0
 email_validator==2.2.0
@@ -123,5 +124,6 @@ weasyprint==65.1
 webencodings==0.5.1
 websockets==15.0.1
 yarl==1.19.0
+youtube-transcript-api>=1.0.0
 yt-dlp==2025.3.31
 zopfli==0.2.3.post1
